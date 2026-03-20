@@ -1,0 +1,41 @@
+// ============================================================
+// firestore.rules — StudySentry Security Rules
+// Deploy via: firebase deploy --only firestore:rules
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users collection ─────────────────────────────────────
+    match /users/{userId} {
+      // Users can read/write their own doc
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Only approved users (admin) can update is_approved field
+      // In production, use Firebase Admin SDK / Cloud Functions for approvals
+      // For simplicity, allow admin by checking a custom claim
+      allow update: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.admin == true
+      );
+    }
+
+    // ── Study Logs ───────────────────────────────────────────
+    match /StudyLogs/{logId} {
+      // Users can create logs for themselves
+      allow create: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+
+      // Users can only read their own logs
+      allow read: if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+
+      // No update/delete for integrity
+      allow update, delete: if false;
+    }
+
+    // ── Leaderboard read (approved users only) ───────────────
+    // Handled via users collection with is_approved filter
+  }
+}

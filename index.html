@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>StudySentry</title>
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: {
+            bangla: ["Hind Siliguri", "sans-serif"],
+            display: ["Rajdhani", "sans-serif"]
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-deep:    #07070f;
+      --bg-mid:     #0e0e1c;
+      --glass:      rgba(255,255,255,0.05);
+      --glass-border: rgba(255,255,255,0.08);
+      --accent:     #6366f1;
+      --accent-glow:#818cf8;
+      --emerald:    #10b981;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg-deep);
+      font-family: "Hind Siliguri", sans-serif;
+      color: #e2e8f0;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Glassmorphism base ── */
+    .glass {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .glass-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    .glass-card-sm {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    /* ── Ambient background ── */
+    .ambient-bg {
+      position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+    }
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.18;
+    }
+    .orb-1 { width: 420px; height: 420px; background: #4f46e5; top: -100px; left: -100px; }
+    .orb-2 { width: 320px; height: 320px; background: #0891b2; bottom: 50px; right: -80px; }
+    .orb-3 { width: 200px; height: 200px; background: #7c3aed; top: 40%; left: 40%; }
+
+    /* ── App shell layout ── */
+    #app-shell { position: relative; z-index: 10; }
+    .main-content {
+      min-height: 100dvh;
+      padding-bottom: 100px;
+      padding-top: 70px;
+    }
+
+    /* ── Top bar ── */
+    .top-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: 64px;
+      background: rgba(7,7,15,0.8);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+    }
+    .logo-text {
+      font-family: "Rajdhani", sans-serif;
+      font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(135deg, #818cf8, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Bottom nav ── */
+    .bottom-nav {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 100; display: flex; gap: 4px;
+      background: rgba(14,14,28,0.92);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 28px;
+      padding: 10px 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+    .nav-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 56px; height: 48px; border-radius: 20px; cursor: pointer;
+      color: rgba(255,255,255,0.35); transition: all 0.25s ease;
+      font-size: 11px; gap: 2px; font-family: "Hind Siliguri", sans-serif;
+      border: none; background: transparent;
+    }
+    .nav-btn svg { width: 22px; height: 22px; transition: all 0.25s ease; }
+    .nav-btn.nav-active {
+      background: rgba(99,102,241,0.2);
+      color: #a5b4fc;
+    }
+    .nav-btn.nav-active svg { color: #818cf8; transform: scale(1.1); }
+    .nav-btn:hover:not(.nav-active) { color: rgba(255,255,255,0.6); }
+
+    /* ── Input fields ── */
+    .inp {
+      width: 100%; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e2e8f0; border-radius: 14px; padding: 14px 16px;
+      font-family: "Hind Siliguri", sans-serif; font-size: 15px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .inp:focus { border-color: rgba(99,102,241,0.6); background: rgba(99,102,241,0.06); }
+    .inp::placeholder { color: rgba(255,255,255,0.25); }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      width: 100%; padding: 15px; border-radius: 16px; border: none; cursor: pointer;
+      font-family: "Hind Siliguri", sans-serif; font-weight: 600; font-size: 16px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(99,102,241,0.5); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      padding: 12px 24px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer; font-family: "Hind Siliguri", sans-serif; font-weight: 500; font-size: 15px;
+      background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7);
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    /* ── Auth tabs ── */
+    .auth-tab { padding: 10px 28px; border-radius: 12px; border: none; cursor: pointer;
+      font-family: "Hind Siliguri", sans-serif; font-size: 15px; font-weight: 500;
+      background: transparent; color: rgba(255,255,255,0.4); transition: all 0.2s; }
+    .auth-tab.active-tab { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+
+    /* ── Circular progress ── */
+    .progress-ring { transform: rotate(-90deg); }
+    #progress-circle {
+      stroke: #6366f1;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1);
+      filter: drop-shadow(0 0 8px rgba(99,102,241,0.6));
+    }
+
+    /* ── Timer display ── */
+    #timer-display {
+      font-family: "Rajdhani", sans-serif;
+      font-size: clamp(3rem, 15vw, 5.5rem);
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: linear-gradient(135deg, #a5b4fc, #38bdf8);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+
+    /* ── Onboarding ── */
+    .ob-dot { width: 8px; height: 8px; border-radius: 50%; transition: all 0.3s; }
+
+    /* ── Range slider ── */
+    input[type="range"] {
+      -webkit-appearance: none; width: 100%; height: 6px;
+      border-radius: 3px; background: rgba(255,255,255,0.1); outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #818cf8);
+      cursor: pointer; box-shadow: 0 0 10px rgba(99,102,241,0.5);
+    }
+
+    /* ── Select ── */
+    select.inp { background-image: none; appearance: none; }
+
+    /* ── Chat ── */
+    #chat-messages { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+    #chat-messages::-webkit-scrollbar { width: 4px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    /* ── Loader ── */
+    .spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid rgba(99,102,241,0.2);
+      border-top-color: #6366f1;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Generating screen ── */
+    .pulse-ring {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: rgba(99,102,241,0.15);
+      border: 2px solid rgba(99,102,241,0.4);
+      animation: pulseRing 1.5s ease-out infinite;
+    }
+    @keyframes pulseRing {
+      0%  { transform: scale(0.8); opacity: 0.8; }
+      100%{ transform: scale(1.6); opacity: 0; }
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(0);
+      z-index: 9999; background: rgba(30,30,50,0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e2e8f0; padding: 12px 24px; border-radius: 14px;
+      font-size: 14px; white-space: nowrap;
+      transition: opacity 0.3s, transform 0.3s;
+      backdrop-filter: blur(12px);
+    }
+
+    /* ── Fade in animation ── */
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Section headers ── */
+    .section-title {
+      font-family: "Rajdhani", sans-serif;
+      font-weight: 600; font-size: 1.1rem; color: rgba(255,255,255,0.5);
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    /* ── Scrollable area ── */
+    .scroll-area { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+    /* ── Modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .modal-sheet {
+      width: 100%; max-width: 520px;
+      background: #0e0e1c;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 28px 28px 0 0;
+      padding: 24px 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ AMBIENT BACKGROUND ══════════════════════════════════ -->
+<div class="ambient-bg">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- ══ GLOBAL LOADER ════════════════════════════════════════ -->
+<div id="global-loader" class="hidden fixed inset-0 z-[500] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div class="spinner"></div>
+</div>
+
+<!-- ══ TOAST ════════════════════════════════════════════════ -->
+<div id="toast" class="opacity-0 translate-y-4">স্বাগতম</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 1: AUTH
+═══════════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="app-screen relative z-10 min-h-dvh flex items-center justify-center px-5">
+  <div class="w-full max-w-sm fade-in">
+
+    <!-- Logo -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+           style="background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(79,70,229,0.15)); border: 1px solid rgba(99,102,241,0.3);">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <path d="M16 4L28 10V22L16 28L4 22V10L16 4Z" stroke="#818cf8" stroke-width="2" fill="rgba(99,102,241,0.15)"/>
+          <circle cx="16" cy="16" r="5" fill="#818cf8"/>
+        </svg>
+      </div>
+      <h1 class="logo-text text-3xl">StudySentry</h1>
+      <p class="text-white/40 mt-1 text-sm">তোমার পড়াশোনার অভিভাবক</p>
+    </div>
+
+    <!-- Card -->
+    <div class="glass-card rounded-3xl p-6">
+
+      <!-- Tabs -->
+      <div class="flex bg-white/5 rounded-2xl p-1 mb-6">
+        <button class="auth-tab active-tab flex-1" data-tab="email">ইমেইল</button>
+        <button class="auth-tab flex-1" data-tab="phone">ফোন (OTP)</button>
+      </div>
+
+      <!-- Email Form -->
+      <div id="email-form">
+        <div class="space-y-3">
+          <input id="email-input" type="email" class="inp" placeholder="ইমেইল ঠিকানা" autocomplete="email" />
+          <input id="pass-input" type="password" class="inp" placeholder="পাসওয়ার্ড" autocomplete="current-password" />
+          <button id="email-auth-btn" class="btn-primary mt-2">প্রবেশ করুন / নিবন্ধন করুন</button>
+        </div>
+        <p class="text-white/30 text-xs text-center mt-4">নতুন হলে স্বয়ংক্রিয়ভাবে অ্যাকাউন্ট তৈরি হবে</p>
+      </div>
+
+      <!-- Phone Form -->
+      <div id="phone-form" class="hidden">
+        <div class="space-y-3">
+          <input id="phone-input" type="tel" class="inp" placeholder="+880 XXXXXXXXXX" />
+          <button id="send-otp-btn" class="btn-primary">OTP পাঠান</button>
+          <div id="otp-section" class="hidden space-y-3 pt-2">
+            <input id="otp-input" type="number" class="inp text-center tracking-widest" placeholder="৬ সংখ্যার OTP" maxlength="6" />
+            <button id="verify-otp-btn" class="btn-primary">যাচাই করুন</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div id="recaptcha-container"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 2: ACCESS PENDING
+═══════════════════════════════════════════════════════════ -->
+<div id="pending-screen" class="app-screen hidden relative z-10 min-h-dvh flex items-center justify-center px-5">
+  <div class="w-full max-w-sm text-center fade-in">
+    <div class="glass-card rounded-3xl p-10">
+      <div class="text-6xl mb-6">⏳</div>
+      <h2 class="text-2xl font-bold text-white mb-3">অ্যাক্সেস অপেক্ষারত</h2>
+      <p class="text-white/50 leading-relaxed mb-8">
+        তোমার নিবন্ধন সফল হয়েছে। অ্যাডমিনের অনুমোদনের পর তুমি StudySentry-তে প্রবেশ করতে পারবে।
+      </p>
+      <div class="inline-flex items-center gap-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-5 py-3 text-yellow-300 text-sm">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        অনুমোদনের অপেক্ষায় আছো
+      </div>
+      <button onclick="auth.signOut()" class="btn-secondary w-full mt-6">লগআউট করুন</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 3: ONBOARDING
+═══════════════════════════════════════════════════════════ -->
+<div id="onboarding-screen" class="app-screen hidden relative z-10 min-h-dvh flex items-center justify-center px-5 py-10">
+  <div class="w-full max-w-sm fade-in">
+
+    <!-- Progress dots -->
+    <div class="flex justify-center gap-2 mb-8">
+      <div class="ob-dot bg-indigo-400"></div>
+      <div class="ob-dot bg-white/20"></div>
+      <div class="ob-dot bg-white/20"></div>
+    </div>
+
+    <div class="glass-card rounded-3xl p-7">
+
+      <!-- Step 1: Name & Avatar -->
+      <div class="ob-step">
+        <h2 class="text-xl font-bold text-white mb-1">পরিচয় দাও 👋</h2>
+        <p class="text-white/40 text-sm mb-6">তোমার নাম ও অবতার বেছে নাও</p>
+        <input id="ob-name" type="text" class="inp mb-5" placeholder="তোমার নাম" />
+        <p class="text-white/50 text-sm mb-3">অবতার বেছে নাও</p>
+        <div id="avatar-grid" class="grid grid-cols-3 gap-3 mb-6"></div>
+        <button id="ob-next-1" class="btn-primary">পরবর্তী →</button>
+      </div>
+
+      <!-- Step 2: Academic Details -->
+      <div class="ob-step hidden">
+        <h2 class="text-xl font-bold text-white mb-1">পড়াশোনার তথ্য 📚</h2>
+        <p class="text-white/40 text-sm mb-6">তোমার একাডেমিক বিবরণ দাও</p>
+        <div class="space-y-3 mb-6">
+          <input id="ob-age" type="number" class="inp" placeholder="বয়স" min="5" max="60" />
+          <input id="ob-class" type="text" class="inp" placeholder="শ্রেণি / সেমিস্টার (যেমন: ক্লাস ১০, ১ম বর্ষ)" />
+          <input id="ob-college" type="text" class="inp" placeholder="প্রতিষ্ঠানের নাম" />
+        </div>
+        <button id="ob-next-2" class="btn-primary">পরবর্তী →</button>
+      </div>
+
+      <!-- Step 3: Study Goal -->
+      <div class="ob-step hidden">
+        <h2 class="text-xl font-bold text-white mb-1">লক্ষ্য নির্ধারণ 🎯</h2>
+        <p class="text-white/40 text-sm mb-8">প্রতিদিন কত ঘণ্টা পড়তে চাও?</p>
+
+        <div class="text-center mb-6">
+          <span id="ob-goal-display" class="text-5xl font-bold" style="font-family:'Rajdhani',sans-serif; background: linear-gradient(135deg,#a5b4fc,#38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">4 ঘণ্টা</span>
+        </div>
+        <input id="ob-goal-slider" type="range" min="1" max="12" value="4" class="mb-8" />
+        <div class="flex justify-between text-white/30 text-xs mb-8">
+          <span>১ ঘণ্টা</span><span>১২ ঘণ্টা</span>
+        </div>
+        <button id="ob-finish-btn" class="btn-primary">✨ শুরু করা যাক!</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 4: GENERATING PLAN ANIMATION
+═══════════════════════════════════════════════════════════ -->
+<div id="generating-screen" class="app-screen hidden relative z-10 min-h-dvh flex items-center justify-center">
+  <div class="text-center fade-in">
+    <div class="relative inline-flex items-center justify-center mb-8">
+      <div class="pulse-ring absolute"></div>
+      <div class="pulse-ring absolute" style="animation-delay:0.5s;"></div>
+      <div class="w-20 h-20 rounded-full flex items-center justify-center"
+           style="background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(56,189,248,0.2)); border: 2px solid rgba(99,102,241,0.5);">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#a5b4fc" stroke-width="1.5"/>
+          <path d="M2 17l10 5 10-5" stroke="#a5b4fc" stroke-width="1.5"/>
+          <path d="M2 12l10 5 10-5" stroke="#a5b4fc" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+    <h2 class="text-xl font-bold text-white mb-3">ব্যক্তিগত পরিকল্পনা তৈরি হচ্ছে...</h2>
+    <p class="text-white/40 text-sm">তোমার স্টাডি প্রোফাইল সাজানো হচ্ছে</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 5: MAIN APP SHELL
+═══════════════════════════════════════════════════════════ -->
+<div id="app-shell" class="app-screen hidden">
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-xl flex items-center justify-center"
+           style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#818cf8" stroke-width="2"/>
+          <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#818cf8" stroke-width="2"/>
+        </svg>
+      </div>
+      <span class="logo-text">StudySentry</span>
+    </div>
+    <button id="settings-btn" class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/5 transition-colors" aria-label="সেটিংস">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- ── Pages ─────────────────────────────── -->
+  <div class="main-content px-4 relative z-10">
+
+    <!-- ▸ HOME PAGE -->
+    <div id="page-home" class="page hidden fade-in">
+      <div class="pt-4 pb-2">
+        <div class="flex items-center gap-3 mb-6">
+          <img id="home-avatar" src="" alt="avatar" class="w-11 h-11 rounded-2xl border border-white/10" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 80\'><circle cx=\'40\' cy=\'40\' r=\'40\' fill=\'%23312e81\'/></svg>'" />
+          <div>
+            <p class="text-white/40 text-xs">স্বাগতম,</p>
+            <p id="home-name" class="text-white font-semibold text-base leading-tight"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Circular Progress -->
+      <div class="glass-card rounded-3xl p-6 mb-5 flex flex-col items-center">
+        <p class="section-title mb-5">আজকের অগ্রগতি</p>
+        <div class="relative">
+          <svg width="160" height="160" class="progress-ring" viewBox="0 0 124 124">
+            <circle cx="62" cy="62" r="54" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+            <circle id="progress-circle" cx="62" cy="62" r="54" fill="none" stroke="#6366f1" stroke-width="10" stroke-dasharray="339" stroke-dashoffset="339"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="progress-pct" class="text-3xl font-bold text-white" style="font-family:'Rajdhani',sans-serif;">0%</span>
+            <span id="progress-time" class="text-white/50 text-sm">0ঘ 0মি</span>
+          </div>
+        </div>
+        <p id="home-goal" class="text-white/40 text-sm mt-4"></p>
+      </div>
+
+      <!-- Recent Logs -->
+      <div class="glass-card-sm rounded-2xl p-4">
+        <p class="section-title mb-4">আজকের পড়াশোনা</p>
+        <div id="recent-logs"></div>
+      </div>
+    </div>
+
+    <!-- ▸ LEADERBOARD PAGE -->
+    <div id="page-leaderboard" class="page hidden fade-in">
+      <div class="pt-4 pb-2 mb-4">
+        <h2 class="text-xl font-bold text-white">লিডারবোর্ড 🏆</h2>
+        <p class="text-white/40 text-sm">XP ভিত্তিক র‍্যাংকিং (১ ঘণ্টা = ১০০ XP)</p>
+      </div>
+      <div id="leaderboard-list"></div>
+    </div>
+
+    <!-- ▸ TRACKER PAGE -->
+    <div id="page-tracker" class="page hidden fade-in">
+      <div class="pt-4 pb-2 mb-5">
+        <h2 class="text-xl font-bold text-white">স্টাডি ট্র্যাকার ⏱</h2>
+        <p class="text-white/40 text-sm">বিষয় ও টপিক বেছে টাইমার শুরু করো</p>
+      </div>
+
+      <!-- Subject & Topic -->
+      <div class="glass-card rounded-3xl p-5 mb-4 space-y-3">
+        <input id="tracker-subject" type="text" class="inp" placeholder="বিষয় (যেমন: পদার্থবিজ্ঞান)" />
+        <input id="tracker-topic" type="text" class="inp" placeholder="টপিক (যেমন: নিউটনের সূত্র)" />
+      </div>
+
+      <!-- Timer -->
+      <div class="glass-card rounded-3xl p-6 mb-4 flex flex-col items-center">
+        <div id="timer-display" class="mb-2">00:00:00</div>
+        <p class="text-white/30 text-sm mb-6">ঘণ্টা : মিনিট : সেকেন্ড</p>
+
+        <div class="flex gap-3 w-full">
+          <button id="timer-start-btn" class="btn-primary flex-1">▶ শুরু</button>
+          <button id="timer-reset-btn" class="btn-secondary">রিসেট</button>
+        </div>
+      </div>
+
+      <button id="timer-save-btn" class="hidden btn-primary w-full py-4 text-base"
+        style="background: linear-gradient(135deg,#059669,#047857); box-shadow: 0 4px 20px rgba(5,150,105,0.3);">
+        ✅ সংরক্ষণ করুন ও XP অর্জন করুন
+      </button>
+    </div>
+
+    <!-- ▸ AI ASSISTANT PAGE -->
+    <div id="page-ai" class="page hidden fade-in flex flex-col" style="height: calc(100dvh - 170px);">
+      <div class="pt-4 pb-3 flex-shrink-0">
+        <h2 class="text-xl font-bold text-white">AI সহকারী 🤖</h2>
+        <p class="text-white/40 text-sm">পড়াশোনার যেকোনো প্রশ্ন করো</p>
+      </div>
+
+      <!-- Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto py-2 scroll-area">
+        <div class="flex justify-start mb-3">
+          <div class="glass-card-sm text-white/80 text-sm px-4 py-3 rounded-2xl rounded-bl-sm max-w-[80%] leading-relaxed">
+            হ্যালো! আমি তোমার AI স্টাডি অ্যাসিস্ট্যান্ট। পদার্থবিজ্ঞান, গণিত, রসায়ন বা যেকোনো বিষয়ে প্রশ্ন করো। 📚
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="flex-shrink-0 pt-3 pb-2">
+        <div class="flex gap-2 items-end">
+          <textarea id="ai-input" rows="1"
+            class="inp flex-1 resize-none"
+            placeholder="প্রশ্ন লিখো..."
+            style="min-height:48px; max-height:120px; overflow-y:auto;"></textarea>
+          <button id="ai-send-btn"
+            class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all"
+            style="background: linear-gradient(135deg,#6366f1,#4f46e5); box-shadow: 0 4px 16px rgba(99,102,241,0.4);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ▸ PROFILE PAGE -->
+    <div id="page-profile" class="page hidden fade-in">
+      <div class="pt-4 pb-4">
+        <!-- Profile header -->
+        <div class="glass-card rounded-3xl p-6 mb-4 flex flex-col items-center">
+          <img id="profile-avatar" src="" alt="avatar"
+            class="w-20 h-20 rounded-2xl border-2 border-indigo-500/40 mb-4"
+            onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 80\'><circle cx=\'40\' cy=\'40\' r=\'40\' fill=\'%23312e81\'/></svg>'" />
+          <h2 id="profile-name" class="text-xl font-bold text-white mb-1">—</h2>
+          <div class="inline-flex items-center gap-1 bg-indigo-500/15 px-3 py-1 rounded-full">
+            <span class="text-indigo-300 font-bold text-sm" id="profile-xp">0 XP</span>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="glass-card-sm rounded-2xl p-5 space-y-4">
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-white/50 text-sm">শ্রেণি</span>
+            <span id="profile-class" class="text-white text-sm font-medium">—</span>
+          </div>
+          <div class="flex justify-between items-center py-2 border-b border-white/5">
+            <span class="text-white/50 text-sm">প্রতিষ্ঠান</span>
+            <span id="profile-college" class="text-white text-sm font-medium text-right max-w-[60%] truncate">—</span>
+          </div>
+          <div class="flex justify-between items-center py-2">
+            <span class="text-white/50 text-sm">দৈনিক লক্ষ্য</span>
+            <span id="profile-goal" class="text-white text-sm font-medium">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-btn nav-active" data-page="home" aria-label="হোম">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>হোম</span>
+    </button>
+    <button class="nav-btn" data-page="leaderboard" aria-label="লিডারবোর্ড">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      <span>র‍্যাংক</span>
+    </button>
+    <button class="nav-btn" data-page="tracker" aria-label="ট্র্যাকার">
+      <div class="w-11 h-11 rounded-2xl flex items-center justify-center -mt-5"
+           style="background:linear-gradient(135deg,#6366f1,#4f46e5);box-shadow:0 4px 20px rgba(99,102,241,0.5);border:2px solid rgba(255,255,255,0.1)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <span style="margin-top:2px">ট্র্যাকার</span>
+    </button>
+    <button class="nav-btn" data-page="ai" aria-label="AI সহকারী">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+      <span>AI</span>
+    </button>
+    <button class="nav-btn" data-page="profile" aria-label="প্রোফাইল">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>প্রোফাইল</span>
+    </button>
+  </nav>
+
+</div><!-- /app-shell -->
+
+<!-- ══════════════════════════════════════════════════════════
+     SCREEN 6: ADMIN PANEL (/admin-mehedi or #admin-mehedi)
+═══════════════════════════════════════════════════════════ -->
+<div id="admin-screen" class="app-screen hidden relative z-10 min-h-dvh">
+  <div class="top-bar">
+    <span class="logo-text">StudySentry Admin</span>
+    <button onclick="auth.signOut()" class="btn-secondary text-xs py-2 px-4">লগআউট</button>
+  </div>
+  <div class="main-content px-4 pt-6">
+    <div class="pb-4 mb-4">
+      <h2 class="text-xl font-bold text-white">ব্যবহারকারী তালিকা 👥</h2>
+      <p class="text-white/40 text-sm">অনুমোদন প্রদান বা বাতিল করুন</p>
+    </div>
+    <div id="admin-user-list"></div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ════════════════════════════════════════ -->
+<div id="settings-modal" class="hidden modal-backdrop">
+  <div class="modal-sheet">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-lg font-bold text-white">সেটিংস</h3>
+      <button id="close-settings" class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-white/5">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-4 rounded-2xl hover:bg-red-500/10 text-red-400 transition-all">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      লগআউট করুন
+    </button>
+    <div class="mt-4 pt-4 border-t border-white/5 text-center text-white/20 text-xs">
+      StudySentry v1.0 · তোমার পড়াশোনার অভিভাবক
+    </div>
+  </div>
+</div>
+
+<!-- Firebase + App Scripts -->
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
