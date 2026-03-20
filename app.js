@@ -482,27 +482,31 @@ async function sendAIMessage() {
 
   appendChatBubble(text, "user");
   input.value = "";
-  STATE.chatHistory.push({ role: "user", content: text });
+  STATE.chatHistory.push({ role: "user", parts: [{ text }] });
 
   const thinking = appendChatBubble("চিন্তা করছি...", "assistant", true);
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system: `তুমি StudySentry-এর AI Study Assistant। তুমি বাংলায় সাড়া দাও। তুমি শুধু পড়াশোনা সম্পর্কিত প্রশ্নের উত্তর দাও। সংক্ষিপ্ত ও পরিষ্কার উত্তর দাও।`,
-        messages: STATE.chatHistory
-      })
-    });
+    const GEMINI_KEY = "AIzaSyClKLmt8wpxGF-0DrDl34VeH7A1g85F8po";
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: "তুমি StudySentry-এর AI Study Assistant। তুমি সবসময় বাংলায় সাড়া দাও। তুমি শুধু পড়াশোনা সম্পর্কিত প্রশ্নের উত্তর দাও। সংক্ষিপ্ত ও পরিষ্কার উত্তর দাও।" }]
+          },
+          contents: STATE.chatHistory
+        })
+      }
+    );
     const data  = await res.json();
-    const reply = data.content?.[0]?.text || "দুঃখিত, উত্তর দিতে পারছি না।";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "দুঃখিত, উত্তর দিতে পারছি না।";
 
     thinking.remove();
     appendChatBubble(reply, "assistant");
-    STATE.chatHistory.push({ role: "assistant", content: reply });
+    STATE.chatHistory.push({ role: "model", parts: [{ text: reply }] });
     if (STATE.chatHistory.length > 20) STATE.chatHistory = STATE.chatHistory.slice(-20);
   } catch(e) {
     thinking.remove();
